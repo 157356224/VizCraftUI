@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useEditorStore } from '../../stores/editor';
-import { AlignLeft, AlignCenter, AlignRight, AlignJustify } from 'lucide-vue-next';
+import { AlignLeft, AlignCenter, AlignRight, AlignJustify, Plus, Trash2 } from 'lucide-vue-next';
 
 const store = useEditorStore();
 
@@ -16,6 +16,7 @@ const selectedElement = computed(() => {
 });
 
 const isTextElement = computed(() => selectedElement.value?.type === 'text');
+const isCarouselElement = computed(() => selectedElement.value?.type === 'carousel');
 
 function updateProp(key: string, value: any) {
   if (!selectedElement.value) return;
@@ -25,6 +26,32 @@ function updateProp(key: string, value: any) {
 function updateStyle(key: string, value: any) {
   if (!selectedElement.value) return;
   store.updateElementStyle(selectedElement.value.id, { [key]: value });
+}
+
+// Carousel helpers
+function addCarouselImage() {
+  if (!selectedElement.value || !selectedElement.value.images) return;
+  const newImages = [...selectedElement.value.images, 'https://via.placeholder.com/300x200/cccccc/969696?text=New+Slide'];
+  store.updateElement(selectedElement.value.id, { images: newImages });
+}
+
+function removeCarouselImage(index: number) {
+  if (!selectedElement.value || !selectedElement.value.images) return;
+  const newImages = [...selectedElement.value.images];
+  newImages.splice(index, 1);
+  store.updateElement(selectedElement.value.id, { images: newImages });
+  
+  // Adjust current index if needed
+  if (selectedElement.value.currentIndex && selectedElement.value.currentIndex >= newImages.length) {
+    store.updateElement(selectedElement.value.id, { currentIndex: Math.max(0, newImages.length - 1) });
+  }
+}
+
+function updateCarouselImage(index: number, url: string) {
+  if (!selectedElement.value || !selectedElement.value.images) return;
+  const newImages = [...selectedElement.value.images];
+  newImages[index] = url;
+  store.updateElement(selectedElement.value.id, { images: newImages });
 }
 
 // Helper to get numeric value from style (e.g. "10px" -> 10)
@@ -138,6 +165,37 @@ function openColorPicker(e: MouseEvent) {
         <div class="input-group">
           <span class="label draggable" @mousedown="e => handleLabelDrag(e, 'height')">H</span>
           <input type="number" :value="Math.round(selectedElement.height)" @change="e => updateProp('height', +(e.target as HTMLInputElement).value)" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Carousel Settings -->
+    <div class="panel-section" v-if="isCarouselElement">
+      <div class="section-title">轮播设置</div>
+      
+      <div class="row">
+        <div class="input-group">
+          <span class="label draggable" @mousedown="e => handleLabelDrag(e, 'interval')">间隔 (ms)</span>
+          <input type="number" :value="selectedElement.interval || 3000" @change="e => updateProp('interval', +(e.target as HTMLInputElement).value)" step="100" min="500" />
+        </div>
+      </div>
+      
+      <div class="section-subtitle" style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px;">
+        <span>图片列表</span>
+        <button class="icon-btn" @click="addCarouselImage" title="添加图片"><Plus :size="14" /></button>
+      </div>
+      
+      <div class="image-list">
+        <div v-for="(img, index) in selectedElement.images" :key="index" class="image-item">
+          <div class="image-preview" :style="{ backgroundImage: `url(${img})` }"></div>
+          <input 
+            type="text" 
+            class="image-url-input" 
+            :value="img" 
+            @change="e => updateCarouselImage(index, (e.target as HTMLInputElement).value)"
+            placeholder="Image URL"
+          />
+          <button class="icon-btn danger" @click="removeCarouselImage(index)" title="删除"><Trash2 :size="14" /></button>
         </div>
       </div>
     </div>
@@ -449,12 +507,53 @@ input[type="color"] {
 }
 
 .color-hex {
-  background: #1e1e1e;
-  border: 1px solid #333;
-  color: #eee;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  width: 80px;
-}
-</style>
+    background: #1e1e1e;
+    border: 1px solid #333;
+    color: #eee;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    width: 80px;
+  }
+  
+  /* Carousel */
+  .image-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  
+  .image-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #252526;
+    padding: 4px;
+    border-radius: 4px;
+  }
+  
+  .image-preview {
+    width: 32px;
+    height: 24px;
+    background-size: cover;
+    background-position: center;
+    border-radius: 2px;
+    background-color: #333;
+  }
+  
+  .image-url-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #ccc;
+    font-size: 11px;
+    outline: none;
+    min-width: 0;
+  }
+  
+  .icon-btn.danger:hover {
+    color: #ff4d4f;
+    background-color: rgba(255, 77, 79, 0.1);
+  }
+  </style>

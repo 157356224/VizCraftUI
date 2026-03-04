@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, nextTick } from 'vue';
+import { computed, ref, nextTick, onMounted, onUnmounted, watch } from 'vue';
 import { useEditorStore } from '../../stores/editor';
 import CanvasElement from './CanvasElement.vue'; // Recursive import
 import { Code } from 'lucide-vue-next';
@@ -67,8 +67,16 @@ const contentStyle = computed(() => {
     height: '100%',
   };
   
-  if (type === 'frame') {
+  if (type === 'frame' || type === 'carousel') {
     s.overflow = 'hidden';
+    
+    // Apply border radius to content as well to clip children
+    const { style } = props.element;
+    if (style.borderRadius) s.borderRadius = style.borderRadius;
+    if (style.borderTopLeftRadius) s.borderTopLeftRadius = style.borderTopLeftRadius;
+    if (style.borderTopRightRadius) s.borderTopRightRadius = style.borderTopRightRadius;
+    if (style.borderBottomRightRadius) s.borderBottomRightRadius = style.borderBottomRightRadius;
+    if (style.borderBottomLeftRadius) s.borderBottomLeftRadius = style.borderBottomLeftRadius;
   }
   
   return s;
@@ -337,6 +345,57 @@ function onResizeMouseDown(e: MouseEvent, edge: string) {
   window.addEventListener('mousemove', handleMouseMove, true);
   window.addEventListener('mouseup', handleMouseUp, true);
 }
+
+// Auto-play for carousel
+let intervalId: number | null = null;
+
+function startCarousel() {
+  stopCarousel();
+  if (props.element.type === 'carousel' && props.element.images?.length > 1) {
+    const interval = props.element.interval || 3000;
+    intervalId = window.setInterval(() => {
+      const nextIndex = ((props.element.currentIndex || 0) + 1) % props.element.images.length;
+      store.updateElement(props.element.id, { currentIndex: nextIndex });
+    }, interval);
+  }
+}
+
+function stopCarousel() {
+  if (intervalId !== null) {
+    clearInterval(intervalId);
+    intervalId = null;
+  }
+}
+
+watch(() => [props.element.type, props.element.interval, props.element.images?.length], () => {
+  if (props.element.type === 'carousel') {
+    startCarousel();
+  } else {
+    stopCarousel();
+  }
+});
+
+onMounted(() => {
+  if (props.element.type === 'carousel') {
+    startCarousel();
+  }
+});
+
+onUnmounted(() => {
+  stopCarousel();
+});
+
+watch(() => props.element.interval, () => {
+  if (props.element.type === 'carousel') {
+    startCarousel();
+  }
+});
+
+watch(() => props.element.images, () => {
+    if (props.element.type === 'carousel') {
+        startCarousel();
+    }
+}, { deep: true });
 </script>
 
 <template>
@@ -378,6 +437,49 @@ function onResizeMouseDown(e: MouseEvent, edge: string) {
         style="width: 100%; height: 100%; object-fit: fill; pointer-events: none;"
         draggable="false"
       />
+
+      <!-- Carousel Element -->
+      <div v-if="element.type === 'carousel'" class="carousel-element" style="width: 100%; height: 100%; position: relative; overflow: hidden;">
+        <div 
+          class="carousel-track"
+          :style="{
+            transform: `translateX(-${(element.currentIndex || 0) * 100}%)`,
+            transition: 'transform 0.3s ease-in-out',
+            display: 'flex',
+            height: '100%'
+          }"
+        >
+          <div 
+            v-for="(img, index) in element.images" 
+            :key="index"
+            class="carousel-slide"
+            style="min-width: 100%; height: 100%;"
+          >
+            <img 
+              :src="img" 
+              style="width: 100%; height: 100%; object-fit: cover; pointer-events: none;"
+              draggable="false"
+            />
+          </div>
+        </div>
+        
+        <!-- Navigation Dots -->
+        <div class="carousel-dots" style="position: absolute; bottom: 10px; left: 0; right: 0; display: flex; justify-content: center; gap: 6px;">
+          <div 
+            v-for="(_, index) in element.images" 
+            :key="index"
+            class="dot"
+            :style="{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              backgroundColor: (element.currentIndex || 0) === index ? '#fff' : 'rgba(255,255,255,0.5)',
+              cursor: 'pointer'
+            }"
+            @click.stop="store.updateElement(element.id, { currentIndex: Number(index) })"
+          ></div>
+        </div>
+      </div>
 
       <!-- Text Element -->
       <div v-if="element.type === 'text'" class="text-container" style="width: 100%; height: 100%;">

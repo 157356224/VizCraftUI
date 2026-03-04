@@ -4,7 +4,7 @@ import { ref } from 'vue';
 export interface EditorElement {
   id: string;
   name: string;
-  type: 'frame' | 'rect' | 'text' | 'image';
+  type: 'frame' | 'rect' | 'text' | 'image' | 'carousel';
   x: number;
   y: number;
   width: number;
@@ -16,6 +16,9 @@ export interface EditorElement {
   children: EditorElement[];
   content?: string;
   imageUrl?: string;
+  images?: string[];
+  currentIndex?: number;
+  interval?: number;
   style: {
     fill?: string;
     stroke?: string;
@@ -408,6 +411,17 @@ export const useEditorStore = defineStore('editor', () => {
           });
         }
         code += `${indent}</view>\n`;
+      } else if (el.type === 'carousel') {
+        // Carousel structure for uni-app (swiper)
+        code += `${indent}<swiper class="element-${el.id}" style="${styleString}" indicator-dots autoplay :interval="${el.interval || 3000}" circular>\n`;
+        if (el.images) {
+          el.images.forEach((img, index) => {
+            code += `${indent}  <swiper-item>\n`;
+            code += `${indent}    <image src="${img}" style="width: 100%; height: 100%;" mode="aspectFill"></image>\n`;
+            code += `${indent}  </swiper-item>\n`;
+          });
+        }
+        code += `${indent}</swiper>\n`;
       } else {
         // Fallback for other shapes as views for now
         code += `${indent}<view class="element-${el.id}" style="${styleString}"></view>\n`;
@@ -479,7 +493,7 @@ export const useEditorStore = defineStore('editor', () => {
     if (el.style.fill) {
       if (el.type === 'text') {
         styles.push(`color: ${el.style.fill}`);
-      } else {
+      } else if (el.type !== 'carousel') {
         styles.push(`background-color: ${el.style.fill}`);
       }
     }

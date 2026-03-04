@@ -1,14 +1,35 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import LayerPanel from './LayerPanel.vue';
+import AssetsPanel from './AssetsPanel.vue';
+import Sidebar from './Sidebar.vue';
 import InfiniteCanvas from './InfiniteCanvas.vue';
 import Toolbar from './Toolbar.vue';
 import PropertyPanel from './PropertyPanel.vue';
+import { ChevronLeft, ChevronRight } from 'lucide-vue-next';
+
+const activeLeftPanel = ref<'layers' | 'assets'>('layers');
+const isLeftPanelCollapsed = ref(false);
+
+function toggleCollapse() {
+  isLeftPanelCollapsed.value = !isLeftPanelCollapsed.value;
+}
 </script>
 
 <template>
   <div class="editor-layout">
-    <div class="left-panel">
-      <LayerPanel />
+    <Sidebar @change="(tab) => { activeLeftPanel = tab; isLeftPanelCollapsed = false; }" />
+    <div class="left-panel-wrapper" :class="{ collapsed: isLeftPanelCollapsed }">
+      <div class="left-panel">
+        <AssetsPanel v-show="activeLeftPanel === 'assets'" />
+        <LayerPanel v-show="activeLeftPanel === 'layers'" />
+      </div>
+      
+      <!-- Collapse Button -->
+      <div class="collapse-btn" @click="toggleCollapse" :title="isLeftPanelCollapsed ? '展开' : '收起'">
+        <ChevronRight v-if="isLeftPanelCollapsed" :size="14" />
+        <ChevronLeft v-else :size="14" />
+      </div>
     </div>
     <div class="main-area">
       <InfiniteCanvas />
@@ -32,13 +53,63 @@ import PropertyPanel from './PropertyPanel.vue';
   position: relative;
 }
 
-.left-panel {
+.left-panel-wrapper {
+  position: absolute; /* Changed to absolute to float over canvas */
+  left: 60px; /* Offset by sidebar width */
+  top: 0;
+  bottom: 0;
+  display: flex;
+  height: 100%;
+  transition: transform 0.3s ease;
   width: 240px;
   background-color: #252526;
   border-right: 1px solid #333;
+  z-index: 10;
+  transform: translateX(0);
+}
+
+.left-panel-wrapper.collapsed {
+  transform: translateX(-100%);
+  border-right: none;
+}
+
+.left-panel {
+  width: 240px;
   display: flex;
   flex-direction: column;
-  z-index: 10;
+  overflow: hidden;
+}
+
+.collapse-btn {
+  position: absolute;
+  top: 50%;
+  right: -12px; /* Position half outside */
+  transform: translateY(-50%);
+  width: 12px; /* Half width */
+  height: 48px; /* Taller */
+  background-color: #252526; /* Match panel bg */
+  border: 1px solid #333;
+  border-left: none; /* Remove left border to blend */
+  border-top-right-radius: 12px; /* Round corners on right side */
+  border-bottom-right-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #888;
+  z-index: 20;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+  transition: all 0.2s;
+}
+
+.collapse-btn:hover {
+  background-color: #333;
+  color: white;
+}
+
+.left-panel-wrapper.collapsed .collapse-btn {
+  right: -12px; /* Keep it visible */
+  background-color: #333; /* Darker when collapsed */
 }
 
 .right-panel {

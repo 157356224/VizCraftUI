@@ -1,7 +1,7 @@
 export interface EditorElement {
   id: string;
   name: string;
-  type: 'frame' | 'rect' | 'text' | 'image';
+  type: 'frame' | 'rect' | 'text' | 'image' | 'carousel';
   x: number;
   y: number;
   width: number;
@@ -13,6 +13,9 @@ export interface EditorElement {
   children: EditorElement[];
   content?: string;
   imageUrl?: string;
+  images?: string[]; // For carousel
+  currentIndex?: number;
+  interval?: number; // Auto-play interval in ms
   style: {
     fill?: string;
     stroke?: string;
